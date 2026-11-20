@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cocktails">
+<meta name="theme-color" content="#1c1c1e">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>MY COCKTAIL BOOK</title>
+<style>
+  :root { --bg:#1c1c1e; --tile:#2a2a2d; --text:#f2efe9; --muted:#9c978f; --gold:#c9a25b; --line:#3a3a3e; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; overflow-x:hidden; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg);
+    padding:calc(env(safe-area-inset-top) + 14px) 16px 12px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 10px; font-size:20px; letter-spacing:.18em; font-weight:600; color:var(--gold); text-align:center; }
+  #q { width:100%; font-size:17px; padding:11px 14px; border-radius:12px; border:1px solid var(--line);
+    background:#262629; color:var(--text); outline:none; }
+  #q:focus { border-color:var(--gold); }
+  main { padding:14px 16px calc(env(safe-area-inset-bottom) + 24px); }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(3, 1fr); }
+  @media (orientation:landscape) { .grid { grid-template-columns:repeat(5, 1fr); } }
+  @media (max-width:500px) { .grid { grid-template-columns:repeat(2, 1fr); } }
+  .tile { position:relative; aspect-ratio:1/1; border-radius:14px; overflow:hidden; background:var(--tile);
+    border:1px solid var(--line); cursor:pointer; padding:0; color:var(--text); font:inherit; width:100%; }
+  .tile:active { transform:scale(.97); }
+  .tile img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .tile .name { position:absolute; left:0; right:0; bottom:0; padding:22px 10px 10px; font-size:16px; font-weight:600;
+    line-height:1.2; text-align:left; background:linear-gradient(transparent, rgba(0,0,0,.85)); }
+  .tile.nophoto .name { inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
+    background:none; font-size:19px; padding:12px; }
+  .tile .badge { position:absolute; top:8px; right:8px; font-size:11px; padding:3px 7px; border-radius:8px;
+    background:var(--gold); color:#1c1c1e; font-weight:700; }
+  .section { margin:22px 2px 10px; font-size:13px; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+  .empty { color:var(--muted); text-align:center; padding:40px 0; }
+
+  #recipe { position:fixed; inset:0; z-index:10; background:var(--bg); overflow-y:auto; overflow-x:hidden;
+    display:none; -webkit-overflow-scrolling:touch; }
+  #recipe.open { display:block; }
+  .rbar { position:sticky; top:0; background:var(--bg); padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;
+    border-bottom:1px solid var(--line); z-index:2; }
+  .back { background:none; border:none; color:var(--gold); font-size:18px; padding:8px 6px; cursor:pointer; }
+  .rbody { padding:18px 20px calc(env(safe-area-inset-bottom) + 40px); max-width:900px; margin:0 auto; }
+  .rtop { display:flex; gap:20px; align-items:flex-start; }
+  .rphoto { width:42%; flex-shrink:0; aspect-ratio:1/1; border-radius:16px; overflow:hidden; background:var(--tile); }
+  .rphoto img { width:100%; height:100%; object-fit:cover; display:block; }
+  @media (orientation:portrait) { .rtop { flex-direction:column; } .rphoto { width:100%; max-width:420px; align-self:center; } }
+  h2 { margin:0 0 4px; font-size:30px; }
+  .sub { color:var(--muted); font-size:15px; margin-bottom:14px; }
+  .meta { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:16px; }
+  .meta dt { color:var(--muted); } .meta dd { margin:0; }
+  h3 { color:var(--gold); font-size:14px; letter-spacing:.12em; text-transform:uppercase; margin:26px 0 10px; }
+  table { width:100%; border-collapse:collapse; font-size:18px; }
+  td { padding:10px 4px; border-bottom:1px solid var(--line); }
+  td.amt { text-align:right; white-space:nowrap; color:var(--gold); font-weight:600; width:1%; padding-left:16px; }
+  ol { padding-left:22px; font-size:17px; line-height:1.55; margin:0; } ol li { margin-bottom:6px; }
+  .note { font-size:16px; line-height:1.5; color:#d8d3ca; }
+  .src { margin-top:26px; font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>MY COCKTAIL BOOK</h1>
+  <input id="q" type="search" placeholder="Поиск коктейля" autocomplete="off" autocorrect="off" spellcheck="false">
+</header>
+<main id="list"></main>
+
+<div id="recipe">
+  <div class="rbar"><button class="back" id="back">‹ Каталог</button></div>
+  <div class="rbody" id="rbody"></div>
+</div>
+
+<script>
+/* ============================================================
+   РЕЦЕПТЫ. Фото: положите файл img/<id>.jpg (квадрат). Нет файла — кнопка без фото.
+   Авторские: добавьте объекты в массив AUTHOR по тому же образцу.
+   ============================================================ */
+const CLASSIC = [
+ {id:"margarita", name:"Margarita", ru:"Маргарита", base:"Текила", glass:"Коктейльный (маргарита)", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Текила","50 мл"],["Трипл сек (Cointreau)","20 мл"],["Сок лайма","15 мл"]],
+  steps:["Встряхнуть все ингредиенты со льдом.","Процедить в охлаждённый бокал с солёным ободком (по желанию — на половине ободка)."],
+  garnish:"Ободок из соли, долька лайма", src:"IBA"},
+ {id:"paloma", name:"Paloma", ru:"Палома", base:"Текила", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Текила","50 мл"],["Сок лайма","5 мл"],["Соль","щепотка"],["Газировка с розовым грейпфрутом","100 мл"]],
+  steps:["Наполнить бокал льдом.","Влить текилу и сок лайма, добавить соль.","Долить грейпфрутовой газировкой, аккуратно перемешать."],
+  garnish:"Долька лайма", src:"IBA"},
+ {id:"tequila-sunrise", name:"Tequila Sunrise", ru:"Текила санрайз", base:"Текила", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Текила","45 мл"],["Апельсиновый сок","90 мл"],["Гренадин","15 мл"]],
+  steps:["Налить текилу и апельсиновый сок в бокал со льдом.","Медленно влить гренадин, чтобы он опустился на дно — эффект «рассвета»."],
+  garnish:"Долька апельсина, вишня", src:"IBA"},
+ {id:"mojito", name:"Mojito", ru:"Мохито", base:"Ром", glass:"Хайбол", method:"Мадл / билд", ice:"Колотый или кубики",
+  ing:[["Белый ром","45 мл"],["Сок лайма","20 мл"],["Мята","6 веточек"],["Белый тростниковый сахар","2 ч. л."],["Содовая","долить"]],
+  steps:["Слегка подавить мяту с сахаром и соком лайма.","Добавить ром, наполнить бокал льдом.","Долить содовой, перемешать."],
+  garnish:"Веточка мяты, долька лайма", src:"IBA"},
+ {id:"daiquiri", name:"Daiquiri", ru:"Дайкири", base:"Ром", glass:"Коктейльный", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Белый ром","60 мл"],["Сок лайма","20 мл"],["Сахарный сироп","10 мл"]],
+  steps:["Встряхнуть со льдом.","Процедить в охлаждённый бокал."], garnish:"Долька лайма (по желанию)", src:"IBA"},
+ {id:"pina-colada", name:"Piña Colada", ru:"Пина колада", base:"Ром", glass:"Харрикейн", method:"Блендер или шейк", ice:"Колотый",
+  ing:[["Белый ром","50 мл"],["Кокосовые сливки","30 мл"],["Ананасовый сок","50 мл"]],
+  steps:["Смешать в блендере с колотым льдом или встряхнуть со льдом.","Перелить в бокал."],
+  garnish:"Долька ананаса, коктейльная вишня", src:"IBA"},
+ {id:"cuba-libre", name:"Cuba Libre", ru:"Куба либре", base:"Ром", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Белый ром","50 мл"],["Сок лайма","10 мл"],["Кола","120 мл"]],
+  steps:["Наполнить бокал льдом.","Влить ром и сок лайма, долить колой, перемешать."], garnish:"Долька лайма", src:"IBA"},
+ {id:"mai-tai", name:"Mai Tai", ru:"Май тай", base:"Ром", glass:"Двойной олд фэшн", method:"Шейк", ice:"Колотый",
+  ing:[["Ямайский выдержанный ром","30 мл"],["Мартиникский ром (rhum agricole)","30 мл"],["Оранжевый кюрасао","15 мл"],["Сироп оршад","15 мл"],["Сок лайма","30 мл"],["Сахарный сироп","7,5 мл"]],
+  steps:["Встряхнуть со льдом.","Процедить в бокал с колотым льдом."], garnish:"Половинка лайма, веточка мяты", src:"IBA"},
+ {id:"gin-tonic", name:"Gin & Tonic", ru:"Джин-тоник", base:"Джин", glass:"Хайбол или бокал-балон", method:"Билд", ice:"Крупные кубики",
+  ing:[["Джин","50 мл"],["Тоник","150 мл"]],
+  steps:["Наполнить бокал льдом доверху.","Влить джин, долить охлаждённым тоником, один раз перемешать."],
+  garnish:"Долька лайма или лимона", src:"Классическая пропорция 1:3 (в списке IBA нет)"},
+ {id:"negroni", name:"Negroni", ru:"Негрони", base:"Джин", glass:"Олд фэшн", method:"Стир", ice:"Крупный кубик",
+  ing:[["Джин","30 мл"],["Кампари","30 мл"],["Красный сладкий вермут","30 мл"]],
+  steps:["Налить всё в бокал со льдом.","Перемешать барной ложкой."], garnish:"Половинка кружка апельсина", src:"IBA"},
+ {id:"dry-martini", name:"Dry Martini", ru:"Сухой мартини", base:"Джин", glass:"Коктейльный", method:"Стир", ice:"Без льда в бокале",
+  ing:[["Джин","60 мл"],["Сухой вермут","10 мл"]],
+  steps:["Перемешать со льдом в смесительном стакане.","Процедить в охлаждённый бокал."],
+  garnish:"Цедра лимона или оливка", src:"IBA"},
+ {id:"tom-collins", name:"Tom Collins", ru:"Том Коллинз", base:"Джин", glass:"Коллинз / хайбол", method:"Шейк / билд", ice:"Кубики",
+  ing:[["Джин","45 мл"],["Лимонный сок","22,5 мл"],["Сахарный сироп","15 мл"],["Содовая","60 мл"]],
+  steps:["Встряхнуть джин, сок и сироп со льдом.","Процедить в бокал со льдом, долить содовой."],
+  garnish:"Долька лимона, вишня", src:"IBA"},
+ {id:"gin-fizz", name:"Gin Fizz", ru:"Джин физз", base:"Джин", glass:"Хайбол", method:"Шейк", ice:"Кубики",
+  ing:[["Джин","45 мл"],["Лимонный сок","30 мл"],["Сахарный сироп","10 мл"],["Содовая","80 мл"]],
+  steps:["Встряхнуть всё, кроме содовой, со льдом.","Процедить в бокал, долить содовой."], garnish:"Долька лимона", src:"IBA"},
+ {id:"moscow-mule", name:"Moscow Mule", ru:"Московский мул", base:"Водка", glass:"Медная кружка", method:"Билд", ice:"Кубики",
+  ing:[["Водка","45 мл"],["Сок лайма","10 мл"],["Имбирное пиво","120 мл"]],
+  steps:["Наполнить кружку льдом.","Влить водку и сок лайма, долить имбирным пивом, перемешать."], garnish:"Долька лайма", src:"IBA"},
+ {id:"cosmopolitan", name:"Cosmopolitan", ru:"Космополитен", base:"Водка", glass:"Коктейльный", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Цитрусовая водка","40 мл"],["Cointreau","15 мл"],["Сок лайма","15 мл"],["Клюквенный сок","30 мл"]],
+  steps:["Встряхнуть со льдом.","Дважды процедить в охлаждённый бокал."], garnish:"Цедра лайма или лимона", src:"IBA"},
+ {id:"bloody-mary", name:"Bloody Mary", ru:"Кровавая Мэри", base:"Водка", glass:"Хайбол", method:"Стир", ice:"Кубики",
+  ing:[["Водка","45 мл"],["Томатный сок","90 мл"],["Лимонный сок","15 мл"],["Вустерширский соус","2–3 дэша"],["Табаско, сельдереевая соль, чёрный перец","по вкусу"]],
+  steps:["Смешать всё в бокале со льдом.","Аккуратно перемешать."], garnish:"Стебель сельдерея, долька лимона", src:"IBA"},
+ {id:"espresso-martini", name:"Espresso Martini", ru:"Эспрессо мартини", base:"Водка", glass:"Коктейльный", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Водка","50 мл"],["Кофейный ликёр","30 мл"],["Сахарный сироп","10 мл"],["Эспрессо, свежий","1 порция"]],
+  steps:["Сильно встряхнуть со льдом.","Процедить в охлаждённый бокал."], garnish:"3 кофейных зерна", src:"IBA"},
+ {id:"sex-on-the-beach", name:"Sex on the Beach", ru:"Секс на пляже", base:"Водка", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Водка","40 мл"],["Персиковый шнапс","20 мл"],["Апельсиновый сок","40 мл"],["Клюквенный сок","40 мл"]],
+  steps:["Налить всё в бокал со льдом.","Перемешать."], garnish:"Долька апельсина", src:"IBA"},
+ {id:"old-fashioned", name:"Old Fashioned", ru:"Олд фэшн", base:"Виски", glass:"Олд фэшн", method:"Билд / стир", ice:"Крупный кубик",
+  ing:[["Бурбон или ржаной виски","45 мл"],["Кубик сахара","1 шт."],["Ангостура","несколько дэшей"],["Вода","несколько капель"]],
+  steps:["Положить сахар в бокал, пропитать ангостурой, добавить воду и растереть.","Добавить лёд и виски, перемешать."],
+  garnish:"Цедра апельсина, коктейльная вишня", src:"IBA"},
+ {id:"whiskey-sour", name:"Whiskey Sour", ru:"Виски сауэр", base:"Виски", glass:"Олд фэшн", method:"Шейк", ice:"Кубики",
+  ing:[["Бурбон","45 мл"],["Лимонный сок","25 мл"],["Сахарный сироп","20 мл"],["Яичный белок (по желанию)","20 мл"]],
+  steps:["С белком — сначала встряхнуть без льда.","Встряхнуть со льдом.","Процедить в бокал со льдом."],
+  garnish:"Половинка кружка апельсина, вишня", src:"IBA"},
+ {id:"manhattan", name:"Manhattan", ru:"Манхэттен", base:"Виски", glass:"Коктейльный", method:"Стир", ice:"Без льда в бокале",
+  ing:[["Ржаной виски","50 мл"],["Красный вермут","20 мл"],["Ангостура","1 дэш"]],
+  steps:["Перемешать со льдом в смесительном стакане.","Процедить в охлаждённый бокал."], garnish:"Коктейльная вишня", src:"IBA"},
+ {id:"boulevardier", name:"Boulevardier", ru:"Бульвардье", base:"Виски", glass:"Олд фэшн или коктейльный", method:"Стир", ice:"Крупный кубик или без льда",
+  ing:[["Бурбон или ржаной виски","45 мл"],["Кампари","30 мл"],["Красный сладкий вермут","30 мл"]],
+  steps:["Перемешать со льдом.","Процедить в бокал."], garnish:"Цедра апельсина", src:"IBA"},
+ {id:"aperol-spritz", name:"Aperol Spritz", ru:"Апероль шприц", base:"Игристые", glass:"Винный", method:"Билд", ice:"Кубики",
+  ing:[["Просекко","90 мл"],["Апероль","60 мл"],["Содовая","всплеск"]],
+  steps:["Наполнить бокал льдом.","Влить просекко, затем апероль, добавить содовую."], garnish:"Долька апельсина", src:"IBA (Spritz)"},
+ {id:"mimosa", name:"Mimosa", ru:"Мимоза", base:"Игристые", glass:"Флюте", method:"Билд", ice:"Без льда",
+  ing:[["Шампанское, охлаждённое","75 мл"],["Апельсиновый сок, охлаждённый","75 мл"]],
+  steps:["Налить сок в бокал.","Долить шампанским, аккуратно перемешать."], garnish:"Цедра апельсина (по желанию)", src:"IBA"},
+ {id:"bellini", name:"Bellini", ru:"Беллини", base:"Игристые", glass:"Флюте", method:"Билд", ice:"Без льда",
+  ing:[["Просекко","100 мл"],["Пюре белого персика","50 мл"]],
+  steps:["Налить пюре в охлаждённый бокал.","Долить просекко, аккуратно перемешать."], garnish:"—", src:"IBA"},
+ {id:"french-75", name:"French 75", ru:"Френч 75", base:"Игристые", glass:"Флюте", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Джин","30 мл"],["Лимонный сок","15 мл"],["Сахарный сироп","15 мл"],["Шампанское","60 мл"]],
+  steps:["Встряхнуть джин, сок и сироп со льдом.","Процедить в бокал, долить шампанским."], garnish:"Цедра лимона", src:"IBA"},
+ {id:"amaretto-sour", name:"Amaretto Sour", ru:"Амаретто сауэр", base:"Ликёры", glass:"Олд фэшн", method:"Шейк", ice:"Кубики",
+  ing:[["Амаретто","45 мл"],["Лимонный сок","30 мл"],["Сахарный сироп","15 мл"],["Яичный белок (по желанию)","20 мл"]],
+  steps:["С белком — сначала встряхнуть без льда.","Встряхнуть со льдом.","Процедить в бокал со льдом."],
+  garnish:"Долька лимона, вишня", src:"Распространённая классическая версия (в списке IBA нет)"},
+ {id:"pisco-sour", name:"Pisco Sour", ru:"Писко сауэр", base:"Писко", glass:"Олд фэшн или купе", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Писко","60 мл"],["Лимонный сок","30 мл"],["Сахарный сироп","20 мл"],["Яичный белок","1 шт."],["Ангостура","несколько капель сверху"]],
+  steps:["Энергично встряхнуть со льдом.","Процедить в бокал.","Капнуть ангостуру на пену."], garnish:"Капли ангостуры", src:"IBA"},
+ {id:"dark-n-stormy", name:"Dark ’n’ Stormy", ru:"Дарк энд сторми", base:"Ром", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Тёмный ром (Gosling’s Black Seal)","60 мл"],["Имбирное пиво","100 мл"]],
+  steps:["Налить имбирное пиво в бокал со льдом.","Сверху влить ром."], garnish:"Долька лайма", src:"IBA"},
+ {id:"long-island", name:"Long Island Iced Tea", ru:"Лонг-Айленд", base:"Другие", glass:"Хайбол", method:"Билд", ice:"Кубики",
+  ing:[["Водка","15 мл"],["Текила","15 мл"],["Белый ром","15 мл"],["Джин","15 мл"],["Cointreau","15 мл"],["Лимонный сок","25 мл"],["Сахарный сироп","30 мл"],["Кола","долить"]],
+  steps:["Налить всё, кроме колы, в бокал со льдом.","Перемешать, долить колой."], garnish:"Долька лимона", src:"IBA"},
+ {id:"pornstar-martini", name:"Pornstar Martini", ru:"Порнстар мартини", base:"Водка", glass:"Коктейльный (большой)", method:"Шейк", ice:"Без льда в бокале",
+  ing:[["Ванильная водка","50 мл"],["Ликёр маракуйи","20 мл"],["Пюре маракуйи","50 мл"],["Ванильный сахар","2 барные ложки"],["Шампанское — подать отдельно","50 мл"]],
+  steps:["Встряхнуть всё, кроме шампанского, со льдом.","Дважды процедить в охлаждённый бокал.","Шампанское подать рядом в шоте."],
+  garnish:"Половинка маракуйи", src:"IBA"}
+];
+
+const AUTHOR = [
+ {id:"di-sarli", name:"Di Sarli", base:"Виски", method:"Билд",
+  ing:[["Бурбон","50 мл"],["Кленовый сироп","5 мл"],["Ангостура","1 дэш (~0,5 мл)"],["Яблочный сок","≈110 мл"]],
+  steps:["В стакан: бурбон, кленовый сироп, ангостура (или 55 мл заготовки).","Долить яблочным соком."],
+  note:"Заготовка на 1 л: 900 мл бурбона + 90 мл кленового сиропа + 2 ч. л. ангостуры. В стакан 55 мл заготовки.", src:"Мой рецепт"},
+ {id:"troilo", name:"Troilo", base:"Ром", method:"Билд",
+  ing:[["Ром","50 мл"],["Чили","на кончике ножа"],["Соль","на кончике ножа"],["Сок лайма","10 мл"],["Кола","≈120 мл"]],
+  steps:["В стакан: ром с чили и солью (или 50 мл заготовки).","Добавить сок лайма, долить колой."],
+  note:"Заготовка на 1 л: 950 мл рома + 1 щепотка чили + 1 щепотка соли. В стакан 50 мл заготовки.", src:"Мой рецепт"},
+ {id:"biagi", name:"Biagi", base:"Текила", method:"Билд",
+  ing:[["Текила","50 мл"],["Соль","на кончике ножа"],["Биттер лемон","≈120 мл"]],
+  steps:["В стакан: текила с солью (или 50 мл заготовки).","Долить биттер лемоном."],
+  note:"Заготовка на 1 л: 950 мл текилы + 2 щепотки соли. В стакан 50 мл заготовки.", src:"Мой рецепт"},
+ {id:"donato", name:"Donato", base:"Джин", method:"Билд", garnish:"Ананас",
+  ing:[["Джин","30 мл"],["Сахарный сироп","5 мл"],["Лимонный сок","10 мл"],["Игристое","≈100 мл"]],
+  steps:["В стакан: джин и сироп (или 35 мл заготовки).","Добавить лимонный сок, долить игристым."],
+  note:"Заготовка на 1 л: 850 мл джина + 140 мл сахарного сиропа. В стакан 35 мл заготовки.", src:"Мой рецепт"},
+ {id:"laurenz", name:"Laurenz", base:"Ликёры", method:"Билд",
+  ing:[["Егермейстер","30 мл"],["Сахарный сироп","5 мл"],["Холодный кофе","30 мл"],["Тоник","≈100 мл"]],
+  steps:["В стакан: егермейстер и сироп (или 35 мл заготовки).","Добавить холодный кофе, долить тоником."],
+  note:"Кофе — без гущи. Заготовка на 1 л: 850 мл егермейстера + 140 мл сахарного сиропа. В стакан 35 мл заготовки. Есть версия Zero.", src:"Мой рецепт"},
+ {id:"frescedo", name:"Frescedo", base:"Ром", method:"Билд",
+  ing:[["Белый ром","40 мл"],["Сахарный сироп","5 мл"],["Сок лайма","10 мл"],["Имбирный эль","≈120 мл"]],
+  steps:["В стакан: ром и сироп (или 45 мл заготовки).","Добавить сок лайма, долить имбирным элем."],
+  note:"Заготовка на 1 л: 880 мл белого рома + 110 мл сахарного сиропа. В стакан 45 мл заготовки. Есть версия Zero.", src:"Мой рецепт"},
+ {id:"pugliese", name:"Pugliese", base:"Водка", method:"Билд",
+  ing:[["Водка","50 мл"],["Табаско","3 капли"],["Вустерширский соус","2 капли"],["Лимонный сок","10 мл"],["Томатный сок","≈100 мл"]],
+  steps:["В стакан: водка, табаско, вустершир (или 50 мл заготовки).","Добавить лимонный сок, долить томатным соком."],
+  note:"Заготовка на 1 л: 950 мл водки + 60 капель табаско + 40 капель вустершира. В стакан 50 мл заготовки. Есть версия Zero.", src:"Мой рецепт"},
+ {id:"darienzo", name:"D'Arienzo", base:"Виски", method:"Билд",
+  ing:[["Лимонный сок","10 мл"],["Имбирный эль","≈120 мл"],["Виски","50 мл"]],
+  steps:["В стакан: лимонный сок и имбирный эль.","Добавить 50 мл виски."],
+  note:"На карте в графе «Декор» указано «Виски».", src:"Мой рецепт"},
+ {id:"tanturi", name:"Tanturi", base:"Игристые", method:"Билд",
+  ing:[["Лимонный сок","10 мл"],["Содовая","≈120 мл"],["Вермут extra dry","объём не указан"]],
+  steps:["В стакан: лимонный сок, содовая, вермут extra dry."],
+  note:"На карте в графе «Декор» указано «Вермут». Объём вермута на карте не указан — впишите свой.", src:"Мой рецепт"},
+ {id:"canaro", name:"Canaro", base:"Ликёры", method:"Билд",
+  ing:[["Кампари","40 мл"],["Персиковый сок","≈60 мл (½)"],["Содовая","≈60 мл (½)"]],
+  steps:["В стакан: кампари.","Долить пополам персиковым соком и содовой."],
+  note:"Есть версия Zero.", src:"Мой рецепт"},
+ {id:"laurenz-zero", name:"Laurenz Zero", alt:"Laurenz безалкогольный", base:"Безалкогольные", method:"Билд",
+  ing:[["Крепкий кофе","40 мл"],["Кленовый сироп","15 мл"],["Тоник","≈120 мл"]],
+  steps:["В стакан: кофе и кленовый сироп.","Долить тоником."], src:"Мой рецепт"},
+ {id:"frescedo-zero", name:"Frescedo Zero", alt:"Frescedo безалкогольный", base:"Безалкогольные", method:"Билд",
+  ing:[["Сок лайма","15 мл"],["Сахарный сироп","15 мл"],["Эссенция рома","2 капли"],["Имбирный эль","≈150 мл"]],
+  steps:["В стакан: лайм, сироп, эссенция рома.","Долить имбирным элем."], src:"Мой рецепт"},
+ {id:"pugliese-zero", name:"Pugliese Zero", alt:"Pugliese безалкогольный", base:"Безалкогольные", method:"Билд",
+  ing:[["Лимонный сок","15 мл"],["Табаско","5 капель"],["Вустерширский соус","3 капли"],["Томатный сок","≈150 мл"]],
+  steps:["В стакан: лимон, табаско, вустершир.","Долить томатным соком."], src:"Мой рецепт"},
+ {id:"canaro-zero", name:"Canaro Zero", alt:"Canaro безалкогольный", base:"Безалкогольные", method:"Билд",
+  ing:[["Лимонный сок","20 мл"],["Персиковый сок","≈70 мл (½)"],["Биттер лемон","≈70 мл (½)"]],
+  steps:["В стакан: лимонный сок.","Долить пополам персиковым соком и биттер лемоном."], src:"Мой рецепт"},
+ {id:"my-aperol", name:"Aperol", alt:"Апероль шприц мой", base:"Игристые", method:"Билд", garnish:"Апельсин",
+  ing:[["Игристое","60 мл"],["Апероль","40 мл"],["Содовая","≈20 мл"]],
+  steps:["В стакан: игристое, затем апероль.","Долить содовой."], src:"Мой рецепт"},
+ {id:"my-whisky-cola", name:"Виски-кола", alt:"Whisky Cola", base:"Виски", method:"Билд", ice:"Лёд", garnish:"Лимон",
+  ing:[["Виски","50 мл"],["Кола","≈120 мл"]],
+  steps:["Стакан со льдом.","Влить виски, долить колой."], src:"Мой рецепт"},
+ {id:"my-gin-tonic", name:"Джин-тоник", alt:"Gin Tonic мой", base:"Джин", method:"Билд", garnish:"Лимон + огурец",
+  ing:[["Джин (на карте написано «Ром»)","50 мл"],["Лимонный сок","≈10 мл"],["Сахарный сироп","≈10 мл"],["Тоник","≈120 мл"]],
+  steps:["В стакан: лимонный сок, сироп, 50 мл алкоголя.","Долить тоником."],
+  note:"На карте: «сок лимон + тоник + 50 мл Ром + сироп». Объёмы сока и сиропа на карте не указаны.", src:"Мой рецепт"},
+ {id:"my-mojito", name:"Мохито", alt:"Mojito мой", base:"Ром", method:"Билд", garnish:"Мята (хлопнуть)",
+  ing:[["Сахарный сироп","15 мл"],["Сок лайма","15 мл"],["Мята","хлопнуть в ладонях"],["Содовая","≈120 мл"]],
+  steps:["Хлопнуть мяту в ладонях, положить в стакан.","Добавить сироп и сок лайма, долить содовой."],
+  note:"На карте ром не указан. Если нужен — классика 45 мл белого рома.", src:"Мой рецепт"},
+ {id:"my-negroni", name:"Негрони", alt:"Negroni мой", base:"Джин", method:"Билд", ice:"Лёд",
+  ing:[["Джин","30 мл"],["Кампари","30 мл"],["Вермут rosso","30 мл"]],
+  steps:["Стакан со льдом.","Влить всё, перемешать."], src:"Мой рецепт"},
+ {id:"my-tequila-boom", name:"Текила бум", alt:"Tequila Boom", base:"Текила", method:"Билд", ice:"БЕЗ ЛЬДА!",
+  ing:[["Текила","50 мл"],["Спрайт или тоник","50 мл"]],
+  steps:["В стакан без льда: текила, затем спрайт или тоник."], src:"Мой рецепт"},
+  /* Образец:
+  {id:"my-1", name:"Название", ru:"", alt:"", base:"Джин", glass:"Купе", method:"Шейк", ice:"Без льда",
+   ing:[["Джин","50 мл"],["Лимонный сок","20 мл"]],
+   steps:["Встряхнуть со льдом.","Процедить."], garnish:"", note:"", src:"Мой рецепт"},
+  */
+];
+
+const MENU = [
+ {id:"caipirinha", name:"Caipirinha", ru:"Кайпиринья", base:"Другие", glass:"Олд фэшн", method:"Мадл / билд", ice:"Колотый",
+  ing:[["Кашаса","60 мл"],["Лайм","1 шт., дольками"],["Белый тростниковый сахар","4 ч. л."]],
+  steps:["Подавить лайм с сахаром в бокале.","Наполнить колотым льдом, влить кашасу, перемешать."], src:"IBA"},
+ {id:"vodka-martini", name:"Vodka Martini", ru:"Водка мартини", base:"Водка", glass:"Коктейльный", method:"Стир", ice:"Без льда в бокале",
+  ing:[["Водка","60 мл"],["Сухой вермут","10 мл"]],
+  steps:["Перемешать со льдом в смесительном стакане.","Процедить в охлаждённый бокал."], garnish:"Цедра лимона или оливка",
+  src:"По пропорции Dry Martini (IBA) с водкой вместо джина"},
+ {id:"vodka-tonic", name:"Vodka Tonic", ru:"Водка-тоник", base:"Водка", method:"Билд", ice:"Лёд", garnish:"Лимон или лайм",
+  ing:[["Водка","50 мл"],["Тоник","≈120 мл"]],
+  steps:["Стакан со льдом.","Влить водку, долить тоником."], note:"50 мл — как в остальных напитках бара; тоник — оценка.", src:"Меню бара"},
+ {id:"gin-neat", name:"Gin", ru:"Джин", base:"Джин", method:"Налить", ing:[["Джин","50 мл"]],
+  steps:["Налить в бокал, по желанию со льдом."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
+ {id:"whisky-neat", name:"Whisky", ru:"Виски", base:"Виски", method:"Налить", ing:[["Виски","50 мл"]],
+  steps:["Налить в бокал, по желанию со льдом."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
+ {id:"cognac", name:"Cognac", ru:"Коньяк", base:"Коньяк", glass:"Снифтер / коньячный", method:"Налить", ing:[["Коньяк","50 мл"]],
+  steps:["Налить в бокал без льда."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
+ {id:"wine", name:"Wine (Red/White)", ru:"Вино красное / белое", base:"Вино", glass:"Винный", method:"Налить", ing:[["Вино","≈150 мл"]],
+  steps:["Налить в бокал. Белое — охлаждённым."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
+ {id:"wine-zero", name:"Alcohol-free wine", ru:"Безалкогольное вино", base:"Безалкогольные", glass:"Винный", method:"Налить", ing:[["Безалкогольное вино","≈150 мл"]],
+  steps:["Налить в бокал."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
+ {id:"prosecco", name:"Prosecco", ru:"Просекко", base:"Игристые", glass:"Флюте", method:"Налить", ing:[["Просекко, охлаждённое","≈150 мл"]],
+  steps:["Налить в охлаждённый бокал."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
+];
+
+AUTHOR.forEach(r => r.author = true);
+const ALL = [...AUTHOR, ...MENU, ...CLASSIC];
+const byId = Object.fromEntries(ALL.map(r => [r.id, r]));
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm = s => String(s ?? "").toLowerCase().replace(/ё/g,"е").normalize("NFD").replace(/[̀-ͯ]/g,"");
+
+function tile(r) {
+  return `<button class="tile" data-id="${r.id}">
+    <img src="img/${r.id}.jpg" alt="" loading="lazy" onerror="this.parentNode.classList.add('nophoto');this.remove()">
+    ${r.author ? '<span class="badge">МОЙ</span>' : ''}
+    <span class="name">${esc(r.name)}</span></button>`;
+}
+
+function render() {
+  const q = norm(document.getElementById("q").value.trim());
+  const hit = r => !q || [r.name, r.ru, r.alt].some(v => norm(v).includes(q));
+  const a = AUTHOR.filter(hit), m = MENU.filter(hit), c = CLASSIC.filter(hit);
+  let h = "";
+  if (a.length) h += `<div class="section">Авторские</div><div class="grid">${a.map(tile).join("")}</div>`;
+  if (m.length) h += `<div class="section">Меню бара</div><div class="grid">${m.map(tile).join("")}</div>`;
+  if (c.length) h += `<div class="section">Классика</div><div class="grid">${c.map(tile).join("")}</div>`;
+  document.getElementById("list").innerHTML = h || '<div class="empty">Ничего не найдено</div>';
+}
+
+function openRecipe(id, push = true) {
+  const r = byId[id]; if (!r) return;
+  const row = (k, v) => v ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : "";
+  document.getElementById("rbody").innerHTML = `
+    <div class="rtop">
+      <div class="rphoto" id="rph"><img src="img/${r.id}.jpg" alt="" onerror="document.getElementById('rph').remove()"></div>
+      <div>
+        <h2>${esc(r.name)}</h2>
+        <div class="sub">${esc([r.ru, r.alt, r.author ? "авторский" : ""].filter(Boolean).join(" · "))}</div>
+        <dl class="meta">${row("База", r.base)}${row("Бокал", r.glass)}${row("Метод", r.method)}${row("Лёд", r.ice)}${row("Украшение", r.garnish)}</dl>
+      </div>
+    </div>
+    <h3>Ингредиенты</h3>
+    <table>${r.ing.map(([n, a]) => `<tr><td>${esc(n)}</td><td class="amt">${esc(a)}</td></tr>`).join("")}</table>
+    <h3>Приготовление</h3>
+    <ol>${r.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+    ${r.note ? `<h3>Примечания</h3><div class="note">${esc(r.note)}</div>` : ""}
+    ${r.src ? `<div class="src">Источник: ${esc(r.src)}</div>` : ""}`;
+  const el = document.getElementById("recipe");
+  el.classList.add("open"); el.scrollTop = 0;
+  if (push) history.pushState({id}, "", "#" + id);
+}
+function closeRecipe() { document.getElementById("recipe").classList.remove("open"); }
+
+document.getElementById("list").addEventListener("click", e => {
+  const t = e.target.closest(".tile"); if (t) openRecipe(t.dataset.id);
+});
+document.getElementById("back").addEventListener("click", () => {
+  if (history.state && history.state.id) history.back(); else { closeRecipe(); history.replaceState(null, "", location.pathname); }
+});
+window.addEventListener("popstate", e => { e.state && e.state.id ? openRecipe(e.state.id, false) : closeRecipe(); });
+document.getElementById("q").addEventListener("input", render);
+
+render();
+if (location.hash.length > 1 && byId[location.hash.slice(1)]) openRecipe(location.hash.slice(1), false);
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
