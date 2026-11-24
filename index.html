@@ -21,6 +21,10 @@
   h1 { margin:0 0 10px; font-size:20px; letter-spacing:.18em; font-weight:600; color:var(--gold); text-align:center; }
   #q { width:100%; font-size:17px; padding:11px 14px; border-radius:12px; border:1px solid var(--line);
     background:#262629; color:var(--text); outline:none; }
+  .tabs { display:flex; gap:8px; margin:0 0 10px; }
+  .tab { flex:1; font:inherit; font-size:17px; font-weight:600; padding:10px; border-radius:12px; cursor:pointer;
+    background:#262629; color:var(--muted); border:1px solid var(--line); }
+  .tab.on { background:var(--gold); color:#1c1c1e; border-color:var(--gold); }
   #q:focus { border-color:var(--gold); }
   main { padding:14px 16px calc(env(safe-area-inset-bottom) + 24px); }
   .grid { display:grid; gap:12px; grid-template-columns:repeat(3, 1fr); }
@@ -66,6 +70,7 @@
 <body>
 <header>
   <h1>MY COCKTAIL BOOK</h1>
+  <div class="tabs" id="tabs"><button class="tab on" data-tab="author">Авторские</button><button class="tab" data-tab="classic">Классика</button></div>
   <input id="q" type="search" placeholder="Поиск коктейля" autocomplete="off" autocorrect="off" spellcheck="false">
 </header>
 <main id="list"></main>
@@ -185,7 +190,18 @@ const CLASSIC = [
  {id:"pornstar-martini", name:"Pornstar Martini", ru:"Порнстар мартини", base:"Водка", glass:"Коктейльный (большой)", method:"Шейк", ice:"Без льда в бокале",
   ing:[["Ванильная водка","50 мл"],["Ликёр маракуйи","20 мл"],["Пюре маракуйи","50 мл"],["Ванильный сахар","2 барные ложки"],["Шампанское — подать отдельно","50 мл"]],
   steps:["Встряхнуть всё, кроме шампанского, со льдом.","Дважды процедить в охлаждённый бокал.","Шампанское подать рядом в шоте."],
-  garnish:"Половинка маракуйи", src:"IBA"}
+  garnish:"Половинка маракуйи", src:"IBA"},
+ {id:"caipirinha", name:"Caipirinha", ru:"Кайпиринья", base:"Кашаса", glass:"Двойной олд фэшн", method:"Мадл / билд", ice:"Колотый",
+  ing:[["Кашаса","60 мл"],["Лайм","1 шт., мелкими дольками"],["Белый тростниковый сахар","4 ч. л."]],
+  steps:["Лайм и сахар в бокал, аккуратно подавить.","Наполнить колотым льдом, влить кашасу.","Аккуратно перемешать."],
+  note:"Варианты: Кайпироска — водка вместо кашасы; Кайпириссима — ром вместо кашасы.", src:"IBA"},
+ {id:"vodka-martini", name:"Vodka Martini", ru:"Водка мартини", base:"Водка", glass:"Коктейльный", method:"Стир", ice:"Без льда в бокале",
+  ing:[["Водка","60 мл"],["Сухой вермут","10 мл"]],
+  steps:["Перемешать со льдом в смесительном стакане.","Процедить в охлаждённый бокал."], garnish:"Цедра лимона или оливка",
+  src:"По пропорции Dry Martini (IBA) с водкой вместо джина"},
+ {id:"vodka-tonic", name:"Vodka Tonic", ru:"Водка-тоник", base:"Водка", method:"Билд", ice:"Лёд", garnish:"Лимон или лайм",
+  ing:[["Водка","50 мл"],["Тоник","≈120 мл"]],
+  steps:["Стакан со льдом.","Влить водку, долить тоником."], note:"Тоник — оценка.", src:"Меню бара"},
 ];
 
 const AUTHOR = [
@@ -268,33 +284,9 @@ const AUTHOR = [
   */
 ];
 
-const MENU = [
- {id:"caipirinha", name:"Caipirinha", ru:"Кайпиринья", base:"Другие", glass:"Олд фэшн", method:"Мадл / билд", ice:"Колотый",
-  ing:[["Кашаса","60 мл"],["Лайм","1 шт., дольками"],["Белый тростниковый сахар","4 ч. л."]],
-  steps:["Подавить лайм с сахаром в бокале.","Наполнить колотым льдом, влить кашасу, перемешать."], src:"IBA"},
- {id:"vodka-martini", name:"Vodka Martini", ru:"Водка мартини", base:"Водка", glass:"Коктейльный", method:"Стир", ice:"Без льда в бокале",
-  ing:[["Водка","60 мл"],["Сухой вермут","10 мл"]],
-  steps:["Перемешать со льдом в смесительном стакане.","Процедить в охлаждённый бокал."], garnish:"Цедра лимона или оливка",
-  src:"По пропорции Dry Martini (IBA) с водкой вместо джина"},
- {id:"vodka-tonic", name:"Vodka Tonic", ru:"Водка-тоник", base:"Водка", method:"Билд", ice:"Лёд", garnish:"Лимон или лайм",
-  ing:[["Водка","50 мл"],["Тоник","≈120 мл"]],
-  steps:["Стакан со льдом.","Влить водку, долить тоником."], note:"50 мл — как в остальных напитках бара; тоник — оценка.", src:"Меню бара"},
- {id:"gin-neat", name:"Gin", ru:"Джин", base:"Джин", method:"Налить", ing:[["Джин","50 мл"]],
-  steps:["Налить в бокал, по желанию со льдом."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
- {id:"whisky-neat", name:"Whisky", ru:"Виски", base:"Виски", method:"Налить", ing:[["Виски","50 мл"]],
-  steps:["Налить в бокал, по желанию со льдом."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
- {id:"cognac", name:"Cognac", ru:"Коньяк", base:"Коньяк", glass:"Снифтер / коньячный", method:"Налить", ing:[["Коньяк","50 мл"]],
-  steps:["Налить в бокал без льда."], note:"Порция в меню не указана; 50 мл — как в остальных напитках бара.", src:"Меню бара"},
- {id:"wine", name:"Wine (Red/White)", ru:"Вино красное / белое", base:"Вино", glass:"Винный", method:"Налить", ing:[["Вино","≈150 мл"]],
-  steps:["Налить в бокал. Белое — охлаждённым."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
- {id:"wine-zero", name:"Alcohol-free wine", ru:"Безалкогольное вино", base:"Безалкогольные", glass:"Винный", method:"Налить", ing:[["Безалкогольное вино","≈150 мл"]],
-  steps:["Налить в бокал."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
- {id:"prosecco", name:"Prosecco", ru:"Просекко", base:"Игристые", glass:"Флюте", method:"Налить", ing:[["Просекко, охлаждённое","≈150 мл"]],
-  steps:["Налить в охлаждённый бокал."], note:"Порция в меню не указана; 150 мл — оценка.", src:"Меню бара"},
-];
 
 AUTHOR.forEach(r => r.author = true);
-const ALL = [...AUTHOR, ...MENU, ...CLASSIC];
+const ALL = [...AUTHOR, ...CLASSIC];
 const byId = Object.fromEntries(ALL.map(r => [r.id, r]));
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => String(s ?? "").toLowerCase().replace(/ё/g,"е").normalize("NFD").replace(/[̀-ͯ]/g,"");
@@ -306,14 +298,21 @@ function tile(r) {
     <span class="name">${esc(r.name)}</span></button>`;
 }
 
+let tab = "author";
 function render() {
   const q = norm(document.getElementById("q").value.trim());
   const hit = r => !q || [r.name, r.ru, r.alt].some(v => norm(v).includes(q));
-  const a = AUTHOR.filter(hit), m = MENU.filter(hit), c = CLASSIC.filter(hit);
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  const a = AUTHOR.filter(hit), c = CLASSIC.filter(hit);
   let h = "";
-  if (a.length) h += `<div class="section">Авторские</div><div class="grid">${a.map(tile).join("")}</div>`;
-  if (m.length) h += `<div class="section">Меню бара</div><div class="grid">${m.map(tile).join("")}</div>`;
-  if (c.length) h += `<div class="section">Классика</div><div class="grid">${c.map(tile).join("")}</div>`;
+  if (q) {
+    // Поиск идёт по обеим закладкам
+    if (a.length) h += `<div class="section">Авторские</div><div class="grid">${a.map(tile).join("")}</div>`;
+    if (c.length) h += `<div class="section">Классика</div><div class="grid">${c.map(tile).join("")}</div>`;
+  } else {
+    const list = tab === "author" ? a : c;
+    h = `<div class="grid">${list.map(tile).join("")}</div>`;
+  }
   document.getElementById("list").innerHTML = h || '<div class="empty">Ничего не найдено</div>';
 }
 
@@ -349,6 +348,9 @@ document.getElementById("back").addEventListener("click", () => {
 });
 window.addEventListener("popstate", e => { e.state && e.state.id ? openRecipe(e.state.id, false) : closeRecipe(); });
 document.getElementById("q").addEventListener("input", render);
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if (b) { tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
+});
 
 render();
 if (location.hash.length > 1 && byId[location.hash.slice(1)]) openRecipe(location.hash.slice(1), false);

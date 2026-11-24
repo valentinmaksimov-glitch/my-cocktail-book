@@ -9,6 +9,7 @@ moscow-mule.jpg  cosmopolitan.jpg  bloody-mary.jpg  espresso-martini.jpg  sex-on
 old-fashioned.jpg  whiskey-sour.jpg  manhattan.jpg  boulevardier.jpg
 aperol-spritz.jpg  mimosa.jpg  bellini.jpg  french-75.jpg
 amaretto-sour.jpg  pisco-sour.jpg  long-island.jpg
+caipirinha.jpg  vodka-martini.jpg  vodka-tonic.jpg
 
 Авторские: имя = id из массива AUTHOR в index.html (например my-1.jpg).
 Нет фото — кнопка показывается с названием, без картинки.
