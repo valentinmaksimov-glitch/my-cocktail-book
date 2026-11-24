@@ -1,5 +1,5 @@
 // Офлайн-кэш. При обновлении рецептов увеличьте номер версии.
-const CACHE = "cocktails-v5";
+const CACHE = "cocktails-v6";
 const CORE = ["./", "index.html", "manifest.json", "icon.png"];
 
 self.addEventListener("install", e => {
